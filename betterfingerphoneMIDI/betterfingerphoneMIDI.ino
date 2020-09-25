@@ -28,42 +28,42 @@
 #include <stdint.h>
 
 
- constexpr   struct Midi_to_frequency {
-        constexpr Midi_to_frequency() : arr() {
-            for (auto i = 0; i != 128; ++i)
-                arr[i] = 440.0f*powf(2.0f, i-69); 
-        }
-        float arr[128];
-    } mtof;
-  
+constexpr   struct Midi_to_frequency {
+  constexpr Midi_to_frequency() : arr() {
+    for (auto i = 0; i != 128; ++i)
+      arr[i] = 440.0f * powf(2.0f, i - 69);
+  }
+  float arr[128];
+} mtof;
+
 constexpr   struct Midi_to_unitinterval {
-        constexpr Midi_to_unitinterval() : arr() {
-            for (auto i = 0; i != 128; ++i)
-                arr[i] = i/127.0f; 
-        }
-        float arr[128];
-    } mtoui;
-  
+  constexpr Midi_to_unitinterval() : arr() {
+    for (auto i = 0; i != 128; ++i)
+      arr[i] = i / 127.0f;
+  }
+  float arr[128];
+} mtoui;
+
 
 
 #include "MIDIUSB.h"
 
 class MIDIoutput {
-  public:
+  protected:
     void noteOn(byte channel, byte pitch, byte velocity) {
-      midiEventPacket_t p = {0x09, 0x90 | (channel%16), pitch, velocity};
+      midiEventPacket_t p = {0x09, 0x90 | (channel % 16), pitch, velocity};
       MidiUSB.sendMIDI(p);
     }
     void noteOff(byte channel, byte pitch, byte velocity) {
-      midiEventPacket_t p = {0x08, 0x80 | (channel%16), pitch, velocity};
+      midiEventPacket_t p = {0x08, 0x80 | (channel % 16), pitch, velocity};
       MidiUSB.sendMIDI(p);
     }
     void afterTouch(byte channel, byte pitch, byte velocity) {
-      midiEventPacket_t p = {0x0A, 0xA0 | (channel%16), pitch, velocity};
+      midiEventPacket_t p = {0x0A, 0xA0 | (channel % 16), pitch, velocity};
       MidiUSB.sendMIDI(p);
     }
     void controlChange(byte channel, byte control, byte value) {
-      midiEventPacket_t p = {0x0B, 0xB0 | (channel%16), control, value};
+      midiEventPacket_t p = {0x0B, 0xB0 | (channel % 16), control, value};
       MidiUSB.sendMIDI(p);
     }
     void midiFlush()
@@ -84,7 +84,7 @@ class Cooperative_scheduler  {
     micros_t start_time;                     // in Microseconds
     static const micros_t default_lease_time = 2000;
     micros_t lease_time;
-  public:
+  protected:
     void begin_timer(micros_t l = default_lease_time) {
       lease_time = l;
       start_time = micros();
@@ -102,7 +102,7 @@ static const auto n_muxes = 2;  //Number of Muxes on the FingerPhone MIDI: 2*16 
 
 typedef int8_t touch_amount_t;
 
-// create MIDI message stream for keyboard notes and buttons 
+// create MIDI message stream for keyboard notes and buttons
 class Keyboardevents : public MIDIoutput {
     static const int MIDDLEC = 60;
     static const auto number_of_keys = n_muxes * mux_size;
@@ -122,7 +122,7 @@ class Keyboardevents : public MIDIoutput {
     int transpose;
     size_t keytranspose[number_of_keys];
     unsigned program_number;
-  public:
+  protected:
     Keyboardevents():
       keytranspose {} // 0
     {
@@ -188,8 +188,8 @@ class Keyboardevents : public MIDIoutput {
 
 // process touches and dispatch to Keyboard event
 class Keyboard : public Keyboardevents {
- typedef enum {OFF, POSSIBLETOUCH, CERTAINTOUCH, POSSIBLERELEASE, CERTAINRELEASE} state_machine_t;
-   static const auto number_of_keys = n_muxes * mux_size;
+    typedef enum {OFF, POSSIBLETOUCH, CERTAINTOUCH, POSSIBLERELEASE, CERTAINRELEASE} state_machine_t;
+    static const auto number_of_keys = n_muxes * mux_size;
     state_machine_t states[number_of_keys];
     micros_t longago[number_of_keys], before[number_of_keys];
     struct {
@@ -259,7 +259,7 @@ class Keyboard : public Keyboardevents {
       return value;
     }
 
-  public:
+  protected:
     Keyboard():
       medians {},
       previous {}
@@ -276,7 +276,7 @@ class Keyboard : public Keyboardevents {
 
     void touch_into_sm(bool touched, touch_amount_t v, size_t index)
     {
-      auto now = micros();
+      const auto now = micros();
       if (touched)
         switch (states[index])
         {
@@ -341,9 +341,9 @@ class Keyboard : public Keyboardevents {
 
 #include "newadc.h"
 // read values from muxed adc's and call Keyboard method to handle touch events
-class Touch_board : public Cooperative_scheduler , public Keyboard {
- typedef decltype(A0) pin_t;
-   static const pin_t reset_pin = 9;
+class Touch_board : public Cooperative_scheduler, public Keyboard {
+    typedef decltype(A0) pin_t;
+    static const pin_t reset_pin = 9;
     static constexpr pin_t clk_pins[n_muxes] = { 10, 3};
     static constexpr pin_t adc_pins[n_muxes] = { A2, A1 };
     static const auto fast_adc = true;
@@ -394,7 +394,8 @@ class Touch_board : public Cooperative_scheduler , public Keyboard {
     static const adc_t touch_threshold_bottom = 1000;
     uint_least8_t scale(adc_t x)
     {
-      int_least32_t r = 127 - (127l * (x - touch_threshold_bottom)) / (touch_threshold_top - touch_threshold_bottom);
+      int_least32_t r = 127 - (127l * (x - touch_threshold_bottom)) 
+              / (touch_threshold_top - touch_threshold_bottom);
       if (r < 0)
         r = 0;
       if (r > 127)
@@ -408,12 +409,10 @@ class Touch_board : public Cooperative_scheduler , public Keyboard {
 
 
       // calibration constants according to measurements on hardware
-      const unsigned shortsettletime = 100; // microseconds
-      const unsigned longsettletime = 400; // microseconds
+      const unsigned shortsettletime{100}; // microseconds
+      const unsigned longsettletime{400}; // microseconds
       for (size_t muxindex = 0; muxindex < n_muxes; ++muxindex)
       {
-
-
         digitalWrite(clk_pins[muxindex], HIGH);
 
         delayMicroseconds(shortsettletime);
@@ -453,7 +452,7 @@ class Touch_board : public Cooperative_scheduler , public Keyboard {
     Touch_board():
       touch {}
     {
-      for (auto v : clk_pins)
+      for (const auto v : clk_pins)
         output_low(v);
       output_low(reset_pin);
 
@@ -470,7 +469,8 @@ class Touch_board : public Cooperative_scheduler , public Keyboard {
       begin_timer();
       for (size_t i = 0; i < mux_size; ++i)
       {
-        if (i_should_yield()) break;
+        if (i_should_yield())
+            break;
         count += acquire_next_keypair();
       };
       return count;
@@ -479,9 +479,9 @@ class Touch_board : public Cooperative_scheduler , public Keyboard {
     void print()
     {
       auto cnt = 0;
-      for (auto  &key : touch)
+      for (const auto  &key : touch)
       {
-        for (auto val : key.mux)
+        for (const auto val : key.mux)
         {
           if (!print_everything)
           {
