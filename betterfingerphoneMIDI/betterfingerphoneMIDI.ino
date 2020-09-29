@@ -27,6 +27,15 @@
 */
 #include <stdint.h>
 
+//
+// Object-Oriented Design Patterns and Mechanisms and Principles
+//    Inversion of Control
+//    Singleton
+//    Multilevel Inheritance
+//    State Machine
+//    Visitor 
+//    SOLID
+//    
 
 constexpr   struct Midi_to_frequency {
   constexpr Midi_to_frequency() : arr() {
@@ -103,7 +112,7 @@ static const auto n_muxes = 2;  //Number of Muxes on the FingerPhone MIDI: 2*16 
 typedef int8_t touch_amount_t;
 
 // create MIDI message stream for keyboard notes and buttons
-class Keyboardevents : public MIDIoutput {
+class Keyboardevents : private MIDIoutput {
     static const int MIDDLEC = 60;
     static const auto number_of_keys = n_muxes * mux_size;
 
@@ -187,7 +196,7 @@ class Keyboardevents : public MIDIoutput {
 };
 
 // process touches and dispatch to Keyboard event
-class Keyboard : public Keyboardevents {
+class Keyboard : private Keyboardevents {
     typedef enum {OFF, POSSIBLETOUCH, CERTAINTOUCH, POSSIBLERELEASE, CERTAINRELEASE} state_machine_t;
     static const auto number_of_keys = n_muxes * mux_size;
     state_machine_t states[number_of_keys];
@@ -341,7 +350,7 @@ class Keyboard : public Keyboardevents {
 
 #include "newadc.h"
 // read values from muxed adc's and call Keyboard method to handle touch events
-class Touch_board : public Cooperative_scheduler, public Keyboard {
+ class Touch_board : private Cooperative_scheduler, private Keyboard   {
     typedef decltype(A0) pin_t;
     static const pin_t reset_pin = 9;
     static constexpr pin_t clk_pins[n_muxes] = { 10, 3};
@@ -448,7 +457,7 @@ class Touch_board : public Cooperative_scheduler, public Keyboard {
       return count;
     };
 
-  public:
+
     Touch_board():
       touch {}
     {
@@ -462,6 +471,16 @@ class Touch_board : public Cooperative_scheduler, public Keyboard {
       key_pair_index = 0;
 
     };
+    
+ public:
+    // creates itself once
+    static Touch_board& instance()
+    {
+      static Touch_board Inst;
+        return Inst;
+    }
+    Touch_board(Touch_board &other) = delete;
+    void operator=(const class Touch_board &) = delete;
 
     size_t scan() // returns number of keys touched
     {
@@ -504,7 +523,9 @@ class Touch_board : public Cooperative_scheduler, public Keyboard {
       Serial.print(cnt);
       Serial.println("***");
     }
-} FingerPhone;
+};
+
+class Touch_board &FingerPhone = Touch_board::instance();
 
 
 void setup() {
